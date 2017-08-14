@@ -11,6 +11,7 @@ import "encoding/base64"
 import "sync"
 import "runtime"
 import "raft"
+import "fmt"
 
 func randstring(n int) string {
 	b := make([]byte, 2*n)
@@ -64,6 +65,18 @@ func (cfg *config) LogSize() int {
 		}
 	}
 	return logsize
+}
+
+// Maximum snapshot size across all servers
+func (cfg *config) SnapshotSize() int {
+	snapshotsize := 0
+	for i := 0; i < cfg.n; i++ {
+		n := cfg.saved[i].SnapshotSize()
+		if n > snapshotsize {
+			snapshotsize = n
+		}
+	}
+	return snapshotsize
 }
 
 // attach server i to servers listed in to
@@ -319,7 +332,14 @@ func (cfg *config) make_partition() ([]int, []int) {
 	return p1, p2
 }
 
+var ncpu_once sync.Once
+
 func make_config(t *testing.T, tag string, n int, unreliable bool, maxraftstate int) *config {
+	ncpu_once.Do(func() {
+		if runtime.NumCPU() < 2 {
+			fmt.Printf("warning: only one CPU, which may conceal locking bugs\n")
+		}
+	})
 	runtime.GOMAXPROCS(4)
 	cfg := &config{}
 	cfg.t = t
