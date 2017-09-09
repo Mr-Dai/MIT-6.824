@@ -8,28 +8,27 @@ import (
 	"os"
 )
 
-// Shutdown is an RPC method that shuts down the Master's RPC server.
+// Shutdown 是一个可以关闭 Master RPC 服务器的 RPC 方法
 func (mr *Master) Shutdown(_, _ *struct{}) error {
 	debug("Shutdown: registration server\n")
 	close(mr.shutdown)
-	mr.l.Close() // causes the Accept to fail
+	mr.l.Close() // 令其 Accept 方法失效
 	return nil
 }
 
-// startRPCServer starts the Master's RPC server. It continues accepting RPC
-// calls (Register in particular) for as long as the worker is alive.
+// startRPCServer 会启动 Master 的 RPC 服务器。只要 Worker 仍然存活，
+// 它就会一直接受 RPC 调用
 func (mr *Master) startRPCServer() {
-	rpcs := rpc.NewServer()
-	rpcs.Register(mr)
-	os.Remove(mr.address) // only needed for "unix"
+	s := rpc.NewServer()
+	s.Register(mr)
+	os.Remove(mr.address) // 只在 Unix 上有必要
 	l, e := net.Listen("unix", mr.address)
 	if e != nil {
 		log.Fatal("RegstrationServer", mr.address, " error: ", e)
 	}
 	mr.l = l
 
-	// now that we are listening on the master address, can fork off
-	// accepting connections to another thread.
+	// 既然我们已经在监听 Master 地址了，我们就可以在另一个线程中接受连接了
 	go func() {
 	loop:
 		for {
@@ -41,7 +40,7 @@ func (mr *Master) startRPCServer() {
 			conn, err := mr.l.Accept()
 			if err == nil {
 				go func() {
-					rpcs.ServeConn(conn)
+					s.ServeConn(conn)
 					conn.Close()
 				}()
 			} else {
@@ -53,9 +52,8 @@ func (mr *Master) startRPCServer() {
 	}()
 }
 
-// stopRPCServer stops the master RPC server.
-// This must be done through an RPC to avoid race conditions between the RPC
-// server thread and the current thread.
+// stopRPCServer 会关闭 Master 的 RPC 服务器
+// 这个操作必须通过 RPC 调用完成，以避免 RPC 服务器线程与当前线程间的竞态
 func (mr *Master) stopRPCServer() {
 	var reply ShutdownReply
 	ok := call(mr.address, "Master.Shutdown", new(struct{}), &reply)

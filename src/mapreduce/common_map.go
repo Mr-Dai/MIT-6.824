@@ -4,14 +4,13 @@ import (
 	"hash/fnv"
 )
 
-// doMap manages one map task: it reads one of the input files
-// (inFile), calls the user-defined map function (mapF) for that file's
-// contents, and partitions the output into nReduce intermediate files.
+// doMap 负责一个 Map 任务：它会读入一个输入文件（inFile），调用用户给定的 Map
+// 函数（mapF），并将输出分片至 nReduce 个中间文件中
 func doMap(
-	jobName string, // the name of the MapReduce job
-	mapTaskNumber int, // which map task this is
+	jobName string, // MapReduce 作业的名称
+	mapTaskNumber int, // 当前是哪个 Map 任务
 	inFile string,
-	nReduce int, // the number of reduce task that will be run ("R" in the paper)
+	nReduce int, // Reduce 任务的数量
 	mapF func(file string, contents string) []KeyValue,
 ) {
 	//

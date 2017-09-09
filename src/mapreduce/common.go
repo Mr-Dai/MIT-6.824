@@ -5,10 +5,10 @@ import (
 	"strconv"
 )
 
-// Debugging enabled?
+// 是否开启 Debug 模式
 const debugEnabled = false
 
-// debug() will only print if debugEnabled is true
+// debug() 只在 debugEnabled = true 时才会打印
 func debug(format string, a ...interface{}) (n int, err error) {
 	if debugEnabled {
 		n, err = fmt.Printf(format, a...)
@@ -16,7 +16,7 @@ func debug(format string, a ...interface{}) (n int, err error) {
 	return
 }
 
-// jobPhase indicates whether a task is scheduled as a map or reduce task.
+// jobPhase 用于标识一个任务是作为 Map 任务还是 Reduce 任务被调度
 type jobPhase string
 
 const (
@@ -24,20 +24,18 @@ const (
 	reducePhase          = "Reduce"
 )
 
-// KeyValue is a type used to hold the key/value pairs passed to the map and
-// reduce functions.
+// KeyValue 是用作将键值对传入到 Map 和 Reduce 函数的数据结构
 type KeyValue struct {
 	Key   string
 	Value string
 }
 
-// reduceName constructs the name of the intermediate file which map task
-// <mapTask> produces for reduce task <reduceTask>.
+// reduceName 可构建指定 Map 任务生成给指定 Reduce 任务的中间文件的文件名
 func reduceName(jobName string, mapTask int, reduceTask int) string {
 	return "mrtmp." + jobName + "-" + strconv.Itoa(mapTask) + "-" + strconv.Itoa(reduceTask)
 }
 
-// mergeName constructs the name of the output file of reduce task <reduceTask>
+// mergeName 可构建指定 Reduce 任务输出文件的文件名
 func mergeName(jobName string, reduceTask int) string {
 	return "mrtmp." + jobName + "-res-" + strconv.Itoa(reduceTask)
 }

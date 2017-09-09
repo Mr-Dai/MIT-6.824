@@ -9,8 +9,7 @@ import (
 	"sort"
 )
 
-// merge combines the results of the many reduce jobs into a single output file
-// XXX use merge sort
+// merge 会使用归并排序把若干个 Reduce 任务的输出结果合并为一个输出文件
 func (mr *Master) merge() {
 	debug("Merge phase")
 	kvs := make(map[string]string)
@@ -50,7 +49,7 @@ func (mr *Master) merge() {
 	file.Close()
 }
 
-// removeFile is a simple wrapper around os.Remove that logs errors.
+// removeFile 会调用 os.Remove，并在发生错误时用日志记录错误
 func removeFile(n string) {
 	err := os.Remove(n)
 	if err != nil {
@@ -58,6 +57,7 @@ func removeFile(n string) {
 	}
 }
 
+// CleanupFiles 会删除所有由正在运行的 mr 作业生成的中间文件
 // CleanupFiles removes all intermediate files produced by running mapreduce.
 func (mr *Master) CleanupFiles() {
 	for i := range mr.files {

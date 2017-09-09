@@ -65,7 +65,7 @@ func (wk *Worker) Shutdown(_ *struct{}, res *ShutdownReply) error {
 	debug("Shutdown %s\n", wk.name)
 	wk.Lock()
 	defer wk.Unlock()
-	res.Ntasks = wk.nTasks
+	res.NTasks = wk.nTasks
 	wk.nRPC = 1
 	return nil
 }

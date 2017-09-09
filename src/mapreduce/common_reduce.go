@@ -1,14 +1,12 @@
 package mapreduce
 
-// doReduce manages one reduce task: it reads the intermediate
-// key/value pairs (produced by the map phase) for this task, sorts the
-// intermediate key/value pairs by key, calls the user-defined reduce function
-// (reduceF) for each key, and writes the output to disk.
+// doReduce 负责一个 Reduce 任务：它会读入由 Map 阶段产生的中间结果键值对，
+// 依键的顺序对键值对进行排序，调用用户指定的 Reduce 函数，并把输出写出到磁盘上
 func doReduce(
-	jobName string, // the name of the whole MapReduce job
-	reduceTaskNumber int, // which reduce task this is
-	outFile string, // write the output here
-	nMap int, // the number of map tasks that were run ("M" in the paper)
+	jobName string, // MapReduce 作业的名称
+	reduceTaskNumber int, // 当前是哪个 Reduce 任务
+	outFile string, // 输出文件路径
+	nMap int, // Map 任务的数量
 	reduceF func(key string, values []string) string,
 ) {
 	//
