@@ -9,31 +9,24 @@ func doReduce(
 	nMap int, // Map 任务的数量
 	reduceF func(key string, values []string) string,
 ) {
+	// 你需要编写这个函数
 	//
-	// You will need to write this function.
+	// 你需要从每个 Map 任务读取一个中间文件，reduceName(jobName, m, reduceTaskNumber)
+	// 会返回 Map 任务 m 中你需要读取的文件。
 	//
-	// You'll need to read one intermediate file from each map task;
-	// reduceName(jobName, m, reduceTaskNumber) yields the file
-	// name from map task m.
+	// 你的 doMap 函数会把键值对编码至中间文件中，因此你需要对它们进行解码。
+	// 如果你使用了 JSON 格式，你可以读取文件的内容，再通过创建一个解码器
+	// 并不断地对其调用 .Decode(&kv) 进行解码，直到它返回一个错误
 	//
-	// Your doMap() encoded the key/value pairs in the intermediate
-	// files, so you will need to decode them. If you used JSON, you can
-	// read and decode by creating a decoder and repeatedly calling
-	// .Decode(&kv) on it until it returns an error.
+	// Go 语言 sort 包文档的第一个例子可能会对你有所帮助。
 	//
-	// You may find the first example in the golang sort package
-	// documentation useful.
+	// reduceF() 是应用提供的 Reduce 函数。对于每一个不同的键你都需要调用它，
+	// 并提供该键对应所有值组成的切片。reduceF() 会返回该键归约后的值。
 	//
-	// reduceF() is the application's reduce function. You should
-	// call it once per distinct key, with a slice of all the values
-	// for that key. reduceF() returns the reduced value for that key.
-	//
-	// You should write the reduce output as JSON encoded KeyValue
-	// objects to the file named outFile. We require you to use JSON
-	// because that is what the merger than combines the output
-	// from all the reduce tasks expects. There is nothing special about
-	// JSON -- it is just the marshalling format we chose to use. Your
-	// output code will look something like this:
+	// 你需要把 Reduce 输出的 KeyValue 以 JSON 格式写入到名为 outFile 的
+	// 文件中。我们要求你使用 JSON 是因为后面负责对输出进行合并的 Merger
+	// 期望这些输出是 JSON 格式的。JSON 格式本身没什么特别的，只是一种我们选
+	// 择使用的编码格式罢了。你的输出代码看起来可能会像下面这样：
 	//
 	// enc := json.NewEncoder(file)
 	// for key := ... {

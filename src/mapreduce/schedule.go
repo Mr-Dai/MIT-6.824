@@ -3,17 +3,16 @@ package mapreduce
 import "fmt"
 
 //
-// schedule() starts and waits for all tasks in the given phase (Map
-// or Reduce). the mapFiles argument holds the names of the files that
-// are the inputs to the map phase, one per map task. nReduce is the
-// number of reduce tasks. the registerChan argument yields a stream
-// of registered workers; each item is the worker's RPC address,
-// suitable for passing to call(). registerChan will yield all
-// existing registered workers (if any) and new ones as they register.
+// schedule() 会启动并等待指定阶段（Map 或 Reduce）的所有任务完成。mapFiles
+// 参数包含所有用作 Map 阶段输入文件的名称，每个对应一个 Map 任务。nReduce
+// 是 Reduce 任务的数量。registerChan 参数会提供一个包含已注册 Worker
+// 的 Channel，每个元素都是 Worker 的 RPC 地址，可被传入到 call() 函数中。
+// registerChan 会返回所有已注册的 Worker，并在后续有新的 Worker 注册时
+// 返回新的 Worker
 //
 func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, registerChan chan string) {
 	var nTasks int
-	var nOther int // number of inputs (for reduce) or outputs (for map)
+	var nOther int // Reduce 阶段的输入文件数量或 Map 阶段的输出文件数量
 	switch phase {
 	case mapPhase:
 		nTasks = len(mapFiles)
@@ -25,10 +24,8 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 
 	fmt.Printf("Schedule: %v %v tasks (%d I/Os)\n", nTasks, phase, nOther)
 
-	// All nTasks tasks have to be scheduled on workers, and only once all of
-	// them have been completed successfully should the function return.
-	// Remember that workers may fail, and that any given worker may finish
-	// multiple tasks.
+	// 所有 nTasks 个任务会要被调度到 Worker 上，并且它们都成功完成后函数必须立刻返回。
+	// 记住，Worker 有可能会失效，而且任意 Worker 可能会完成多个任务。
 	//
 	// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 	//

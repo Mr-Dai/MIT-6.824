@@ -19,10 +19,10 @@ const (
 	nReduce = 50
 )
 
-// Create input file with N numbers
-// Check if we have N numbers in output file
+// 创建有 N 个数字的输入文件
+// 检查输出文件中是否有 N 个数字
 
-// Split in words
+// 以单词分隔
 func MapFunc(file string, value string) (res []KeyValue) {
 	debug("Map %v\n", value)
 	words := strings.Fields(value)
@@ -33,7 +33,7 @@ func MapFunc(file string, value string) (res []KeyValue) {
 	return
 }
 
-// Just return key
+// 直接返回键
 func ReduceFunc(key string, values []string) string {
 	for _, e := range values {
 		debug("Reduce %s %v\n", key, e)
@@ -41,8 +41,7 @@ func ReduceFunc(key string, values []string) string {
 	return ""
 }
 
-// Checks input file agaist output file: each input number should show up
-// in the output file in string sorted order
+// 将输入文件与输出文件比对：所有数字都应出现在输出文件中，以字典序排序
 func check(t *testing.T, files []string) {
 	output, err := os.Open("mrtmp.test")
 	if err != nil {
@@ -85,8 +84,8 @@ func check(t *testing.T, files []string) {
 	}
 }
 
-// Workers report back how many RPCs they have processed in the Shutdown reply.
-// Check that they processed at least 1 DoTask RPC.
+// Worker 会在 Shutdown 的响应中返回它们处理了多少个 RPC 调用。
+// 确认它们处理了至少一个 DoTask RPC 调用
 func checkWorker(t *testing.T, l []int) {
 	for _, tasks := range l {
 		if tasks == 0 {
@@ -95,7 +94,7 @@ func checkWorker(t *testing.T, l []int) {
 	}
 }
 
-// Make input file
+// 创建输入文件
 func makeInputs(num int) []string {
 	var names []string
 	var i = 0
@@ -116,9 +115,8 @@ func makeInputs(num int) []string {
 	return names
 }
 
-// Cook up a unique-ish UNIX-domain socket name
-// in /var/tmp. can't use current directory since
-// AFS doesn't support UNIX-domain sockets.
+// 在 /var/tmp 中构建一个唯一的 Unix 域套接字名。
+// 不能在当前目录下做，因为 AFS 不支持 Unix 域套接字
 func port(suffix string) string {
 	s := "/var/tmp/824-"
 	s += strconv.Itoa(os.Getuid()) + "/"
@@ -173,7 +171,7 @@ func TestBasic(t *testing.T) {
 
 func TestOneFailure(t *testing.T) {
 	mr := setup()
-	// Start 2 workers that fail after 10 tasks
+	// 启动两个会在 10 个任务后失效的 Worker
 	go RunWorker(mr.address, port("worker"+strconv.Itoa(0)),
 		MapFunc, ReduceFunc, 10)
 	go RunWorker(mr.address, port("worker"+strconv.Itoa(1)),
@@ -195,7 +193,7 @@ func TestManyFailures(t *testing.T) {
 			cleanup(mr)
 			break
 		default:
-			// Start 2 workers each sec. The workers fail after 10 tasks
+			// 每秒启动两个 Worker。这些 Worker 会在 10 个任务后失效
 			w := port("worker" + strconv.Itoa(i))
 			go RunWorker(mr.address, w, MapFunc, ReduceFunc, 10)
 			i++

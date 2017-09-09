@@ -1,7 +1,7 @@
 package mapreduce
 
 //
-// Please do not modify this file.
+// 不要修改这个文件
 //
 
 import (
@@ -13,21 +13,20 @@ import (
 	"sync"
 )
 
-// Worker holds the state for a server waiting for DoTask or Shutdown RPCs
+// Worker 会保存一个等待 DoTask 和 Shutdown RPC 调用的服务器的状态信息
 type Worker struct {
 	sync.Mutex
 
 	name       string
 	Map        func(string, string) []KeyValue
 	Reduce     func(string, []string) string
-	nRPC       int // quit after this many RPCs; protected by mutex
-	nTasks     int // total tasks executed; protected by mutex
-	concurrent int // number of parallel DoTasks in this worker; mutex
+	nRPC       int // 在这个数量的 RPC 调用后退出。由 mutex 所保护
+	nTasks     int // 执行的总任务数。由 mutex 所保护
+	concurrent int // 该 Worker 当前并发 DoTask 的数量。由 mutex 所保护
 	l          net.Listener
 }
 
-// DoTask is called by the master when a new task is being scheduled on this
-// worker.
+// DoTask 会在一个新任务被分配到该 Worker 上时被 Master 调用
 func (wk *Worker) DoTask(arg *DoTaskArgs, _ *struct{}) error {
 	fmt.Printf("%s: given %v task #%d on file %s (nios: %d)\n",
 		wk.name, arg.Phase, arg.TaskNumber, arg.File, arg.NumOtherPhase)
@@ -59,8 +58,8 @@ func (wk *Worker) DoTask(arg *DoTaskArgs, _ *struct{}) error {
 	return nil
 }
 
-// Shutdown is called by the master when all work has been completed.
-// We should respond with the number of tasks we have processed.
+// Shutdown 会在所有工作都完成后被 Master 调用。
+// 我们应该返回 Worker 已处理的任务数量
 func (wk *Worker) Shutdown(_ *struct{}, res *ShutdownReply) error {
 	debug("Shutdown %s\n", wk.name)
 	wk.Lock()
@@ -70,7 +69,7 @@ func (wk *Worker) Shutdown(_ *struct{}, res *ShutdownReply) error {
 	return nil
 }
 
-// Tell the master we exist and ready to work
+// 告诉 Master Worker 准备好工作了
 func (wk *Worker) register(master string) {
 	args := new(RegisterArgs)
 	args.Worker = wk.name
@@ -80,8 +79,7 @@ func (wk *Worker) register(master string) {
 	}
 }
 
-// RunWorker sets up a connection with the master, registers its address, and
-// waits for tasks to be scheduled.
+// RunWorker 会启动一个与 Master 的连接，注册自己的地址，并等待其分配新的任务
 func RunWorker(MasterAddress string, me string,
 	MapFunc func(string, string) []KeyValue,
 	ReduceFunc func(string, []string) string,
