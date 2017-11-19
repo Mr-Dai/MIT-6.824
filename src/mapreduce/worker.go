@@ -93,7 +93,7 @@ func RunWorker(MasterAddress string, me string,
 	wk.nRPC = nRPC
 	rpcs := rpc.NewServer()
 	rpcs.Register(wk)
-	os.Remove(me) // only needed for "unix"
+	os.Remove(me) // 只有使用 "unix" 协议时才需要
 	l, e := net.Listen("unix", me)
 	if e != nil {
 		log.Fatal("RunWorker: worker ", me, " error: ", e)
@@ -101,7 +101,7 @@ func RunWorker(MasterAddress string, me string,
 	wk.l = l
 	wk.register(MasterAddress)
 
-	// DON'T MODIFY CODE BELOW
+	// 不要修改下面的代码
 	for {
 		wk.Lock()
 		if wk.nRPC == 0 {

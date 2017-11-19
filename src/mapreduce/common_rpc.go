@@ -32,7 +32,7 @@ type RegisterArgs struct {
 }
 
 // call() 会通过 RPC 将指定的参数 args 发往 srv 服务器上的 rpcName 服务，
-// 等待响应，并把响应内容放入到 reply 中。响应的参数因为响应数据结构的地址。
+// 等待响应，并把响应内容放入到 reply 中。作为响应的参数应为指向响应数据结构的地址。
 //
 // call() 会在服务器返回响应时返回 true，在无法连接至服务器时返回 false。
 // 具体而言，当且仅当 call() 返回 true 时 reply 中的内容才是可用的。
