@@ -1,7 +1,11 @@
 package mapreduce
 
 import (
+	"encoding/json"
+	"fmt"
 	"hash/fnv"
+	"io/ioutil"
+	"os"
 )
 
 // doMap 负责一个 Map 任务：它会读入一个输入文件（inFile），调用用户给定的 Map
@@ -42,6 +46,39 @@ func doMap(
 	//
 	// 记得在你写出所有的值以后关闭文件！
 	//
+
+	// !!! 以下是 Mr-Dai 的参考实现代码
+
+	// 读取输入
+	fileBytes, err := ioutil.ReadFile(inFile)
+	if err != nil {
+		fmt.Printf("Failed to open MAP input file %s: %s\n", inFile, err)
+		return
+	}
+
+	// 创建输出文件
+	outFiles := make([]*os.File, nReduce)
+	encs := make([]*json.Encoder, nReduce)
+	for i := 0; i < nReduce; i++ {
+		outFileName := reduceName(jobName, mapTaskNumber, i)
+		outFile, err := os.OpenFile(outFileName, os.O_CREATE, 0600)
+		if err != nil {
+			fmt.Printf("Failed to create MAP output file %s: %s\n", outFileName, err)
+			return
+		}
+		defer outFile.Close()
+		outFiles[i] = outFile
+		encs[i] = json.NewEncoder(outFiles[i])
+	}
+
+	// 运行 Map
+	kvs := mapF(inFile, string(fileBytes))
+
+	// 写出结果
+	for _, kv := range kvs {
+		r := ihash(kv.Key) % nReduce
+		encs[r].Encode(&kv)
+	}
 }
 
 func ihash(s string) int {

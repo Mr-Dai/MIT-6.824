@@ -1,5 +1,27 @@
 package mapreduce
 
+import (
+	"os"
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
+)
+
+type StringSlice []string
+
+func (s StringSlice) Len() int {
+	return len(s)
+}
+
+func (s StringSlice) Less(i, j int) bool {
+	return strings.Compare(s[i], s[j]) == -1
+}
+
+func (s StringSlice) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
 // doReduce 负责一个 Reduce 任务：它会读入由 Map 阶段产生的中间结果键值对，
 // 依键的顺序对键值对进行排序，调用用户指定的 Reduce 函数，并把输出写出到磁盘上
 func doReduce(
@@ -34,4 +56,58 @@ func doReduce(
 	// }
 	// file.Close()
 	//
+
+	// !!! 以下是 Mr-Dai 的参考实现代码
+
+	// 打开输入文件
+	inFiles := make([]*os.File, nMap)
+	decs := make([]*json.Decoder, nMap)
+	for i := 0; i < nMap; i++ {
+		inFileName := reduceName(jobName, i, reduceTaskNumber)
+		inFile, err := os.OpenFile(inFileName, os.O_RDONLY, 0600)
+		if err != nil {
+			fmt.Printf("Failed to open REDUCE input file %s: %s\n", inFileName, err)
+			return
+		}
+		defer inFile.Close()
+		inFiles[i] = inFile
+		decs[i] = json.NewDecoder(inFile)
+	}
+
+	out, err := os.OpenFile(outFile, os.O_CREATE, 0600)
+	if err != nil {
+		fmt.Printf("Failed to create REDUCE output file %s: %s\n", outFile, err)
+		return
+	}
+	defer out.Close()
+	enc := json.NewEncoder(out)
+
+	inKVs := make(map[string][]string)
+	for i := 0; i < nMap; i++ {
+		for {
+			var kv KeyValue
+			err := decs[i].Decode(&kv)
+			if err != nil {
+				if err.Error() != "EOF" {
+					fmt.Printf("Failed to read from REDUCE input file %s: %s\n", inFiles[i].Name(), err)
+				}
+				break
+			}
+			inKVs[kv.Key] = append(inKVs[kv.Key], kv.Value)
+		}
+	}
+
+	keys := make([]string, len(inKVs))
+	var i = 0
+	for k := range inKVs {
+		keys[i] = k
+		i++
+	}
+
+	sort.Sort(StringSlice(keys))
+	for _, key := range keys {
+		values := inKVs[key]
+		reduced := reduceF(key, values)
+		enc.Encode(KeyValue{key, reduced})
+	}
 }
