@@ -61,7 +61,7 @@ func doMap(
 	encs := make([]*json.Encoder, nReduce)
 	for i := 0; i < nReduce; i++ {
 		outFileName := reduceName(jobName, mapTaskNumber, i)
-		outFile, err := os.OpenFile(outFileName, os.O_CREATE, 0600)
+		outFile, err := os.OpenFile(outFileName, os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			fmt.Printf("Failed to create MAP output file %s: %s\n", outFileName, err)
 			return
@@ -73,7 +73,6 @@ func doMap(
 
 	// 运行 Map
 	kvs := mapF(inFile, string(fileBytes))
-
 	// 写出结果
 	for _, kv := range kvs {
 		r := ihash(kv.Key) % nReduce

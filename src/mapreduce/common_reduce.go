@@ -74,7 +74,7 @@ func doReduce(
 		decs[i] = json.NewDecoder(inFile)
 	}
 
-	out, err := os.OpenFile(outFile, os.O_CREATE, 0600)
+	out, err := os.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		fmt.Printf("Failed to create REDUCE output file %s: %s\n", outFile, err)
 		return
