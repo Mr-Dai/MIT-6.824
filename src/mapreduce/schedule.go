@@ -1,6 +1,9 @@
 package mapreduce
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 //
 // schedule() 会启动并等待指定阶段（Map 或 Reduce）的所有任务完成。mapFiles
@@ -29,5 +32,52 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	//
 	// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 	//
+
+	// !!! 以下是 Mr-Dai 的参考实现 !!!
+
+	// 初始化
+	done := make(chan struct{})
+	tasks := make(chan int, nTasks)
+	for i := 0; i < nTasks; i++ {
+		tasks <- i
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(nTasks)
+
+	// 启动主 Goroutine
+	go func() {
+		for {
+			select {
+			case wk := <-registerChan:
+				// 启动 Worker 调度 Goroutine
+				go func(wk string) {
+					for {
+						select {
+						case <-done:
+							break
+						case task := <-tasks:
+							args := DoTaskArgs{JobName: jobName, Phase: phase, TaskNumber: task, NumOtherPhase: nOther}
+							if phase == mapPhase {
+								args.File = mapFiles[task]
+							}
+
+							ok := call(wk, "Worker.DoTask", args, nil)
+							if !ok {
+								tasks <- task
+							} else {
+								wg.Done()
+							}
+						}
+					}
+				}(wk)
+			case <-done:
+				break
+			}
+		}
+	}()
+
+	wg.Wait()
+	close(done)
+
 	fmt.Printf("Schedule: %v phase done\n", phase)
 }

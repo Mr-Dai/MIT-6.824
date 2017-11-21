@@ -38,7 +38,7 @@ func (mr *Master) Register(args *RegisterArgs, _ *struct{}) error {
 	debug("Register: worker %s\n", args.Worker)
 	mr.workers = append(mr.workers, args.Worker)
 
-	// tell forwardRegistrations() that there's a new workers[] entry.
+	// 通知 forwardRegistrations() 函数 workers[] 有了新的元素
 	mr.newCond.Broadcast()
 
 	return nil
