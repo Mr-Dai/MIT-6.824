@@ -1,8 +1,27 @@
 package main
 
-import "os"
-import "fmt"
-import "mapreduce"
+import (
+	"fmt"
+	"mapreduce"
+	"os"
+	"sort"
+	"strings"
+	"unicode"
+)
+
+type StringSlice []string
+
+func (s StringSlice) Len() int {
+	return len(s)
+}
+
+func (s StringSlice) Less(i, j int) bool {
+	return strings.Compare(s[i], s[j]) == -1
+}
+
+func (s StringSlice) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
 
 //
 // 对于每个输入文件，map 函数都会被调用一次。第一个参数是输入文件的名称，
@@ -11,6 +30,17 @@ import "mapreduce"
 //
 func mapF(document string, value string) (res []mapreduce.KeyValue) {
 	// TODO: 你需要实现这个函数来完成倒排索引挑战
+
+	// !!! 以下是 Mr-Dai 的参考实现 !!!
+
+	words := strings.FieldsFunc(value, func(r rune) bool {
+		return !unicode.IsLetter(r)
+	})
+	result := make([]mapreduce.KeyValue, len(words))
+	for i := 0; i < len(words); i++ {
+		result[i] = mapreduce.KeyValue{Key: words[i], Value: document}
+	}
+	return result
 }
 
 //
@@ -19,6 +49,20 @@ func mapF(document string, value string) (res []mapreduce.KeyValue) {
 //
 func reduceF(key string, values []string) string {
 	// TODO: 你需要实现这个函数来完成倒排索引挑战
+
+	// !!! 以下是 Mr-Dai 的参考实现 !!!
+
+	file_map := make(map[string]struct{})
+	for _, value := range values {
+		file_map[value] = struct{}{}
+	}
+	files := make([]string, 0, len(file_map))
+	for file := range file_map {
+		files = append(files, file)
+	}
+
+	sort.Sort(StringSlice(files))
+	return fmt.Sprintf("%d %s", len(files), strings.Join(files, ","))
 }
 
 // 可以以 3 种方式执行
