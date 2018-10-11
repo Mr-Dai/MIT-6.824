@@ -36,7 +36,6 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	// !!! 以下是 Mr-Dai 的参考实现 !!!
 
 	// 初始化
-	done := make(chan struct{})
 	tasks := make(chan int, nTasks)
 	for i := 0; i < nTasks; i++ {
 		tasks <- i
@@ -53,8 +52,6 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 				go func(wk string) {
 					for {
 						select {
-						case <-done:
-							break
 						case task := <-tasks:
 							args := DoTaskArgs{JobName: jobName, Phase: phase, TaskNumber: task, NumOtherPhase: nOther}
 							if phase == mapPhase {
@@ -67,17 +64,18 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 							} else {
 								wg.Done()
 							}
+                        default:
+                            break
 						}
 					}
 				}(wk)
-			case <-done:
+            default:
 				break
 			}
 		}
 	}()
 
 	wg.Wait()
-	close(done)
 
 	fmt.Printf("Schedule: %v phase done\n", phase)
 }

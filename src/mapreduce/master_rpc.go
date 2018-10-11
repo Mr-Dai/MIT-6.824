@@ -44,7 +44,7 @@ func (mr *Master) startRPCServer() {
 					conn.Close()
 				}()
 			} else {
-				debug("RegistrationServer: accept error", err)
+				debug("RegistrationServer: %v", err)
 				break
 			}
 		}
