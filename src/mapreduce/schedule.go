@@ -35,8 +35,7 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 
 	// !!! 以下是 Mr-Dai 的参考实现 !!!
 
-	// 初始化
-	done := make(chan struct{})
+	// 初始化待完成任务池
 	tasks := make(chan int, nTasks)
 	for i := 0; i < nTasks; i++ {
 		tasks <- i
@@ -44,18 +43,22 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	wg := sync.WaitGroup{}
 	wg.Add(nTasks)
 
-	// 启动主 Goroutine
+	done := make(chan struct{})
+	// 启动主 Goroutine，接收新 Worker 的注册事件
 	go func() {
 		for {
 			select {
+			case <-done:
+				break
 			case wk := <-registerChan:
-				// 启动 Worker 调度 Goroutine
+				// 为新注册的 Worker 启动调度 Goroutine
 				go func(wk string) {
 					for {
 						select {
 						case <-done:
 							break
 						case task := <-tasks:
+							// 从任务池中获取一个待完成的任务并调度运行
 							args := DoTaskArgs{JobName: jobName, Phase: phase, TaskNumber: task, NumOtherPhase: nOther}
 							if phase == mapPhase {
 								args.File = mapFiles[task]
@@ -63,21 +66,22 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 
 							ok := call(wk, "Worker.DoTask", args, nil)
 							if !ok {
+								// 任务运行失败，重新回到任务池
+								debug("schedule: worker %s %s task #%d - failed\n", wk, phase, task)
 								tasks <- task
 							} else {
+								debug("schedule: worker %s %s task #%d - succeeded\n", wk, phase, task)
 								wg.Done()
 							}
 						}
 					}
 				}(wk)
-			case <-done:
-				break
 			}
 		}
 	}()
 
+	// 等待所有任务执行完成后通知所有 Goroutine 退出
 	wg.Wait()
 	close(done)
-
 	fmt.Printf("Schedule: %v phase done\n", phase)
 }

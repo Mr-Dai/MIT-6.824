@@ -47,12 +47,12 @@ func doMap(
 	// 记得在你写出所有的值以后关闭文件！
 	//
 
-	// !!! 以下是 Mr-Dai 的参考实现代码
+	// !!! 以下是 Mr-Dai 的参考实现 !!!
 
 	// 读取输入
 	fileBytes, err := ioutil.ReadFile(inFile)
 	if err != nil {
-		fmt.Printf("Failed to open MAP input file %s: %s\n", inFile, err)
+		fmt.Printf("Failed to open MAP input file %s: %v\n", inFile, err)
 		return
 	}
 
@@ -63,7 +63,7 @@ func doMap(
 		outFileName := reduceName(jobName, mapTaskNumber, i)
 		outFile, err := os.OpenFile(outFileName, os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
-			fmt.Printf("Failed to create MAP output file %s: %s\n", outFileName, err)
+			fmt.Printf("Failed to create MAP output file %s: %v\n", outFileName, err)
 			return
 		}
 		defer outFile.Close()
@@ -71,9 +71,8 @@ func doMap(
 		encs[i] = json.NewEncoder(outFiles[i])
 	}
 
-	// 运行 Map
+	// 运行用户 Map 函数，写出结果
 	kvs := mapF(inFile, string(fileBytes))
-	// 写出结果
 	for _, kv := range kvs {
 		r := ihash(kv.Key) % nReduce
 		encs[r].Encode(&kv)

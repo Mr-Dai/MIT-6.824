@@ -57,30 +57,22 @@ func doReduce(
 	// file.Close()
 	//
 
-	// !!! 以下是 Mr-Dai 的参考实现代码
+	// !!! 以下是 Mr-Dai 的参考实现 !!!
 
-	// 打开输入文件
+	// 读取中间结果文件
 	inFiles := make([]*os.File, nMap)
 	decs := make([]*json.Decoder, nMap)
 	for i := 0; i < nMap; i++ {
 		inFileName := reduceName(jobName, i, reduceTaskNumber)
 		inFile, err := os.OpenFile(inFileName, os.O_RDONLY, 0600)
 		if err != nil {
-			fmt.Printf("Failed to open REDUCE input file %s: %s\n", inFileName, err)
+			fmt.Printf("Failed to open REDUCE input file %s: %v\n", inFileName, err)
 			return
 		}
 		defer inFile.Close()
 		inFiles[i] = inFile
 		decs[i] = json.NewDecoder(inFile)
 	}
-
-	out, err := os.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		fmt.Printf("Failed to create REDUCE output file %s: %s\n", outFile, err)
-		return
-	}
-	defer out.Close()
-	enc := json.NewEncoder(out)
 
 	inKVs := make(map[string][]string)
 	for i := 0; i < nMap; i++ {
@@ -89,7 +81,7 @@ func doReduce(
 			err := decs[i].Decode(&kv)
 			if err != nil {
 				if err.Error() != "EOF" {
-					fmt.Printf("Failed to read from REDUCE input file %s: %s\n", inFiles[i].Name(), err)
+					fmt.Printf("Failed to read from REDUCE input file %s: %v\n", inFiles[i].Name(), err)
 				}
 				break
 			}
@@ -97,14 +89,25 @@ func doReduce(
 		}
 	}
 
+	// 对 Key 进行排序
 	keys := make([]string, len(inKVs))
 	var i = 0
 	for k := range inKVs {
 		keys[i] = k
 		i++
 	}
-
 	sort.Sort(StringSlice(keys))
+
+	// 创建输出文件
+	out, err := os.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		fmt.Printf("Failed to create REDUCE output file %s: %vn", outFile, err)
+		return
+	}
+	defer out.Close()
+	enc := json.NewEncoder(out)
+
+	// 运行用户 Reduce 函数，写出结果
 	for _, key := range keys {
 		values := inKVs[key]
 		reduced := reduceF(key, values)
