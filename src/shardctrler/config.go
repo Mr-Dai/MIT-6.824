@@ -1,33 +1,23 @@
-package kvraft
+package shardctrler
 
 import "6.824/labrpc"
+import "6.824/raft"
 import "testing"
 import "os"
 
 // import "log"
 import crand "crypto/rand"
-import "math/big"
 import "math/rand"
 import "encoding/base64"
 import "sync"
 import "runtime"
-import "6.824/raft"
-import "fmt"
 import "time"
-import "sync/atomic"
 
 func randstring(n int) string {
 	b := make([]byte, 2*n)
 	crand.Read(b)
 	s := base64.URLEncoding.EncodeToString(b)
 	return s[0:n]
-}
-
-func makeSeed() int64 {
-	max := big.NewInt(int64(1) << 62)
-	bigx, _ := crand.Int(crand.Reader, max)
-	x := bigx.Int64()
-	return x
 }
 
 // Randomize server handles
@@ -46,17 +36,12 @@ type config struct {
 	t            *testing.T
 	net          *labrpc.Network
 	n            int
-	kvservers    []*KVServer
+	servers      []*ShardCtrler
 	saved        []*raft.Persister
 	endnames     [][]string // names of each server's sending ClientEnds
 	clerks       map[*Clerk][]string
 	nextClientId int
-	maxraftstate int
 	start        time.Time // time at which make_config() was called
-	// begin()/end() statistics
-	t0    time.Time // time at which test_test.go called cfg.begin()
-	rpcs0 int       // rpcTotal() at start of test
-	ops   int32     // number of clerk get/put/append method calls
 }
 
 func (cfg *config) checkTimeout() {
@@ -69,9 +54,9 @@ func (cfg *config) checkTimeout() {
 func (cfg *config) cleanup() {
 	cfg.mu.Lock()
 	defer cfg.mu.Unlock()
-	for i := 0; i < len(cfg.kvservers); i++ {
-		if cfg.kvservers[i] != nil {
-			cfg.kvservers[i].Kill()
+	for i := 0; i < len(cfg.servers); i++ {
+		if cfg.servers[i] != nil {
+			cfg.servers[i].Kill()
 		}
 	}
 	cfg.net.Cleanup()
@@ -88,18 +73,6 @@ func (cfg *config) LogSize() int {
 		}
 	}
 	return logsize
-}
-
-// Maximum snapshot size across all servers
-func (cfg *config) SnapshotSize() int {
-	snapshotsize := 0
-	for i := 0; i < cfg.n; i++ {
-		n := cfg.saved[i].SnapshotSize()
-		if n > snapshotsize {
-			snapshotsize = n
-		}
-	}
-	return snapshotsize
 }
 
 // attach server i to servers listed in to
@@ -274,12 +247,12 @@ func (cfg *config) ShutdownServer(i int) {
 		cfg.saved[i] = cfg.saved[i].Copy()
 	}
 
-	kv := cfg.kvservers[i]
+	kv := cfg.servers[i]
 	if kv != nil {
 		cfg.mu.Unlock()
 		kv.Kill()
 		cfg.mu.Lock()
-		cfg.kvservers[i] = nil
+		cfg.servers[i] = nil
 	}
 }
 
@@ -310,12 +283,13 @@ func (cfg *config) StartServer(i int) {
 	} else {
 		cfg.saved[i] = raft.MakePersister()
 	}
+
 	cfg.mu.Unlock()
 
-	cfg.kvservers[i] = StartKVServer(ends, i, cfg.saved[i], cfg.maxraftstate)
+	cfg.servers[i] = StartServer(ends, i, cfg.saved[i])
 
-	kvsvc := labrpc.MakeService(cfg.kvservers[i])
-	rfsvc := labrpc.MakeService(cfg.kvservers[i].rf)
+	kvsvc := labrpc.MakeService(cfg.servers[i])
+	rfsvc := labrpc.MakeService(cfg.servers[i].rf)
 	srv := labrpc.MakeServer()
 	srv.AddService(kvsvc)
 	srv.AddService(rfsvc)
@@ -327,9 +301,11 @@ func (cfg *config) Leader() (bool, int) {
 	defer cfg.mu.Unlock()
 
 	for i := 0; i < cfg.n; i++ {
-		_, is_leader := cfg.kvservers[i].rf.GetState()
-		if is_leader {
-			return true, i
+		if cfg.servers[i] != nil {
+			_, is_leader := cfg.servers[i].rf.GetState()
+			if is_leader {
+				return true, i
+			}
 		}
 	}
 	return false, 0
@@ -355,26 +331,17 @@ func (cfg *config) make_partition() ([]int, []int) {
 	return p1, p2
 }
 
-var ncpu_once sync.Once
-
-func make_config(t *testing.T, n int, unreliable bool, maxraftstate int) *config {
-	ncpu_once.Do(func() {
-		if runtime.NumCPU() < 2 {
-			fmt.Printf("warning: only one CPU, which may conceal locking bugs\n")
-		}
-		rand.Seed(makeSeed())
-	})
+func make_config(t *testing.T, n int, unreliable bool) *config {
 	runtime.GOMAXPROCS(4)
 	cfg := &config{}
 	cfg.t = t
 	cfg.net = labrpc.MakeNetwork()
 	cfg.n = n
-	cfg.kvservers = make([]*KVServer, cfg.n)
+	cfg.servers = make([]*ShardCtrler, cfg.n)
 	cfg.saved = make([]*raft.Persister, cfg.n)
 	cfg.endnames = make([][]string, cfg.n)
 	cfg.clerks = make(map[*Clerk][]string)
 	cfg.nextClientId = cfg.n + 1000 // client ids start 1000 above the highest serverid
-	cfg.maxraftstate = maxraftstate
 	cfg.start = time.Now()
 
 	// create a full set of KV servers.
@@ -387,39 +354,4 @@ func make_config(t *testing.T, n int, unreliable bool, maxraftstate int) *config
 	cfg.net.Reliable(!unreliable)
 
 	return cfg
-}
-
-func (cfg *config) rpcTotal() int {
-	return cfg.net.GetTotalCount()
-}
-
-// start a Test.
-// print the Test message.
-// e.g. cfg.begin("Test (2B): RPC counts aren't too high")
-func (cfg *config) begin(description string) {
-	fmt.Printf("%s ...\n", description)
-	cfg.t0 = time.Now()
-	cfg.rpcs0 = cfg.rpcTotal()
-	atomic.StoreInt32(&cfg.ops, 0)
-}
-
-func (cfg *config) op() {
-	atomic.AddInt32(&cfg.ops, 1)
-}
-
-// end a Test -- the fact that we got here means there
-// was no failure.
-// print the Passed message,
-// and some performance numbers.
-func (cfg *config) end() {
-	cfg.checkTimeout()
-	if cfg.t.Failed() == false {
-		t := time.Since(cfg.t0).Seconds()  // real time
-		npeers := cfg.n                    // number of Raft peers
-		nrpc := cfg.rpcTotal() - cfg.rpcs0 // number of RPC sends
-		ops := atomic.LoadInt32(&cfg.ops)  //  number of clerk get/put/append calls
-
-		fmt.Printf("  ... Passed --")
-		fmt.Printf("  %4.1f  %d %5d %4d\n", t, npeers, nrpc, ops)
-	}
 }
