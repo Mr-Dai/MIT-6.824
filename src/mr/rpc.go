@@ -10,12 +10,22 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 )
 
 const (
 	MAP = "MAP"
 	REDUCE = "REDUCE"
 )
+
+type Task struct {
+	Type         string // MAP or REDUCE
+	Index        int
+	MapInputFile string
+
+	WorkerID string
+	Deadline time.Time
+}
 
 type ApplyForTaskArgs struct {
 	WorkerID string
@@ -25,8 +35,6 @@ type ApplyForTaskArgs struct {
 }
 
 type ApplyForTaskReply struct {
-	ShouldEnd bool
-
 	TaskType     string // MAP or REDUCE
 	TaskIndex    int
 	MapInputFile string

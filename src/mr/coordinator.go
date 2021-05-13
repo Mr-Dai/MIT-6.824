@@ -12,19 +12,10 @@ import (
 	"time"
 )
 
-type Task struct {
-	Type         string
-	Index        int
-	MapInputFile string
-
-	WorkerID string
-	Deadline time.Time
-}
-
 type Coordinator struct {
-	lock sync.Mutex
+	lock sync.Mutex // 保护共享信息，避免并发冲突
 
-	stage          string // 当前作业阶段，MAP or REDUCE
+	stage          string // 当前作业阶段，MAP or REDUCE。为空代表已完成可退出
 	nMap           int
 	nReduce        int
 	tasks          map[string]Task
@@ -76,9 +67,9 @@ func (c *Coordinator) ApplyForTask(args *ApplyForTaskArgs, reply *ApplyForTaskRe
 	// 获取一个可用 Task 并返回
 	task, ok := <- c.availableTasks
 	if !ok {
-		reply.ShouldEnd = true
 		return nil
 	}
+
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	log.Printf("Assign %s task %d to worker %s\n", task.Type, task.Index, args.WorkerID)

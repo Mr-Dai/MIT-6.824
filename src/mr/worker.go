@@ -58,8 +58,9 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 		reply := ApplyForTaskReply{}
 		call("Coordinator.ApplyForTask", &args, &reply)
 
-		if reply.ShouldEnd {
-			log.Printf("Received stop signal from coordinator")
+		if reply.TaskType == "" {
+			// MR 作业已完成，退出
+			log.Printf("Received job finish signal from coordinator")
 			break
 		}
 
